@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 0 20px 60px;
+      text-align: center;
+      background-color: #fafafa;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+    }
+
+    input[type="text"] {
+      width: 70%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+      border: none;
+      border-radius: 6px;
+      background-color: #007bff;
+      color: white;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #subscriptionStatus {
+      margin-top: 20px;
+      font-size: 15px;
+      color: #444;
+    }
+
+    #subscribeButton {
+      margin-top: 10px;
+      background-color: #28a745;
+    }
+
+    #subscribeButton:hover {
+      background-color: #218838;
+    }
+
+    #errorMessage {
+      color: red;
+      margin-top: 15px;
+    }
+
+    #loader {
+      display: none;
+      margin: 30px auto;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #generatedImage {
+      display: none;
+      opacity: 0;
+      margin-top: 25px;
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      transition: opacity 0.4s ease-in;
+    }
+
+    #generatedImage.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Image Generator</h1>
+
+  <input type="text" id="promptInput" placeholder="Enter your prompt here">
+  <br>
+  <button onclick="generateImage()">Generate Image</button>
+
+  <div id="subscriptionStatus">Checking subscription...</div>
+  <button id="subscribeButton" style="display:none;" onclick="subscribe()">Subscribe</button>
+
+  <div id="errorMessage"></div>
+  <div id="loader"></div>
+
+  <img id="generatedImage" src="" alt="Generated Image" onerror="this.style.display='none'">
+
+  <script>
+    const CURRENT_USER_EMAIL = "{{ user_email }}"; // safely injected from Flask context
+
+    function generateImage() {
+      const prompt = document.getElementById('promptInput').value;
+      const img = document.getElementById('generatedImage');
+      const loader = document.getElementById('loader');
+      const error = document.getElementById('errorMessage');
+
+      if (!prompt) {
+        alert('Please enter a prompt');
+        return;
+      }
+
+      img.style.display = 'none';
+      img.classList.remove('show');
+      loader.style.display = 'block';
+      error.innerText = '';
+
+      fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      })
+      .then(response => response.json())
+      .then(data => {
+        loader.style.display = 'none';
+        if (data.imageUrl) {
+          img.src = data.imageUrl;
+          img.onload = () => {
+            img.style.display = 'block';
+            img.classList.add('show');
+          };
+        } else {
+          error.innerText = data.error || 'Error generating image.';
+        }
+      })
+      .catch(() => {
+        loader.style.display = 'none';
+        error.innerText = 'Something went wrong.';
+      });
+    }
+
+    function subscribe() {
+      fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: CURRENT_USER_EMAIL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert("Something went wrong: " + data.error);
+        }
+      });
+    }
+
+    window.onload = function () {
+      fetch('/api/check-subscription')
+        .then(res => res.json())
+        .then(data => {
+          const subStatus = document.getElementById('subscriptionStatus');
+          if (data.subscribed) {
+            subStatus.innerText = '✅ You are subscribed to unlimited image generation.';
+          } else {
+            subStatus.innerText = '⚠️ You are not subscribed. You have 3 free generations left today.';
+            document.getElementById('subscribeButton').style.display = 'inline-block';
+          }
+        });
+    };
+  </script>
+
+</body>
+</html>
