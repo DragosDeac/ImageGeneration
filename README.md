@@ -1,5 +1,4 @@
-# ImageGeneration
-# Project Name
+# DALL·E Image Generation Platform with Stripe Subscriptions
 
 A web application that integrates OpenAI's DALL·E 3 for image generation, along with Stripe for managing transactions and subscriptions.
 
